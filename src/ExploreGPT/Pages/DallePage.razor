@@ -26,6 +26,11 @@
     <MudItem xs="12" sm="5">
         <MudPaper Class="pa-4 mud-height-full">
             <MudText Typo="Typo.subtitle2">@($"Results ({results.Count})")</MudText>
+                @if (!string.IsNullOrEmpty(ErrorMsg))
+            {
+                <MudText Typo="Typo.subtitle2">@($"Error: {ErrorMsg}")</MudText>
+            }
+           
                 @foreach (var result in results)
             {
                 <MudImage Fluid="true" Src="@result.Url" Alt="@result.Title"></MudImage>
@@ -34,6 +39,7 @@
     </MudItem>
 </MudGrid>
 @code {
+    string ErrorMsg = string.Empty;
     string Username = "TestUser";
     string ImageSize = StaticValues.ImageStatics.Size.Size256;
     int NumImages = 2;
@@ -49,6 +55,7 @@
     }
     async Task Submit()
     {
+        ErrorMsg = string.Empty;
         var imageResult = await openAiService.Image.CreateImage(new ImageCreateRequest
             {
                 Prompt = InputPrompt,
@@ -65,6 +72,13 @@
             Console.WriteLine(string.Join("\n", imageResult.Results.Select(r => r.Url)));
             var count = 1;
             results.AddRange(imageResult.Results.Select(x => new ImageModel() { Url = x.Url, Title = $"Image-{count++}" }));
+        }
+        else
+        {
+            var res = imageResult.Error.Message;
+            Console.WriteLine(res);
+            ErrorMsg = res;
+            //results.Add(res);
         }
     }
 

@@ -57,7 +57,14 @@
     {
         var completionResult = await openAiService.Models.RetrieveModel(SelectedModel);
         var message = string.Empty;
+        if(completionResult.Successful)
         results.Add($"Id: {completionResult.Id}, owner: { completionResult.Owner}, created: {completionResult.CreatedTime}, parent: {completionResult.Parent}, root:{completionResult.Root}");
+        else
+        {
+            var res = completionResult.Error.Message;
+            Console.WriteLine(res);
+            results.Add(res);
+        }
     }
 
 

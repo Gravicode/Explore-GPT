@@ -23,7 +23,8 @@ var configBuilder = new ConfigurationBuilder()
 IConfiguration Configuration = configBuilder.Build();
 
 AppConstants.OpenAIKey = Configuration["OpenAIKey"];
-builder.Services.AddOpenAIService(settings => { settings.ApiKey = AppConstants.OpenAIKey; });
+AppConstants.OrgID = Configuration["OrgID"];
+builder.Services.AddOpenAIService(settings => { settings.ApiKey = AppConstants.OpenAIKey; settings.Organization = AppConstants.OrgID; });
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
