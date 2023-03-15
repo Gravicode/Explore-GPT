@@ -11,7 +11,7 @@
             <MudForm @ref="form">
                 <MudSelect T="MessageSources" @bind-Value="SelectedSource" Label="Source" AnchorOrigin="Origin.BottomCenter">
                     <MudSelectItem Value="MessageSources.User" />
-                    <MudSelectItem Value="MessageSources.Asistant" />
+                    <MudSelectItem Value="MessageSources.Assistant" />
                     <MudSelectItem Value="MessageSources.System" />
                 </MudSelect>
                 <MudTextField T="string" Label="Prompt" Lines="5" @bind-Value="InputPrompt" Required="true" RequiredError="please type prompt!" />
@@ -71,126 +71,130 @@
     </MudItem>
 </MudGrid>
 @code {
-            MessageSources SelectedSource = MessageSources.User;
+    List<ChatItem> Messages = new();
+    string SelectedModel = Models.ChatGpt3_5Turbo;
+    ChatItem itemObject = new ChatItem();
+    bool success;
+    List<string>
+    results = new();
+    int MaxToken = 50;
+    MudForm form;
+    MessageSources SelectedSource = MessageSources.User;
     private bool dense = false;
-        private bool hover = true;
-        private bool striped = false;
-        private bool bordered = false;
-        private string searchString1 = "";
-        private ChatItem selectedItem1 = null;
-        string InputPrompt;
-        private HashSet<ChatItem> selectedItems = new HashSet<ChatItem>();
+    private bool hover = true;
+    private bool striped = false;
+    private bool bordered = false;
+    private string searchString1 = "";
+    private ChatItem selectedItem1 = null;
+    string InputPrompt;
+    private HashSet<ChatItem> selectedItems = new HashSet<ChatItem>();
 
-        private bool FilterFunc1(ChatItem element) => FilterFunc(element, searchString1);
+    private bool FilterFunc1(ChatItem element) => FilterFunc(element, searchString1);
 
-        private bool FilterFunc(ChatItem element, string searchString)
+    private bool FilterFunc(ChatItem element, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (element.Message.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+    async Task AddMessage()
+    {
+        if (!string.IsNullOrEmpty(InputPrompt))
         {
-            if (string.IsNullOrWhiteSpace(searchString))
-                return true;
-            if (element.Message.Contains(searchString, StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            return false;
-        }
-        async Task AddMessage()
-        {
-            if (!string.IsNullOrEmpty(InputPrompt))
-            {
-                Messages.Add(new ChatItem() { Message = InputPrompt, Source = SelectedSource });
-            }
-        }
-        List<ChatItem> Messages = new();
-        string SelectedModel = Models.ChatGpt3_5Turbo;
-        ChatItem itemObject = new ChatItem();
-        bool success;
-        List<string>
-        results = new();
-        int MaxToken = 50;
-        MudForm form;
-        private async Task PrepareForDelete(ChatItem item)
-        {
-            itemObject = item;
-            var options = new DialogOptions { CloseOnEscapeKey = true };
-            var dialog = DialogService.Show<ConfirmDialog>("Konfirmasi", options);
-            var result = await dialog.Result;
-
-            if (!result.Cancelled)
-            {
-                var task = Messages.Remove(item);
-                //await jsRuntime.InvokeAsync<object>("CloseModal", "confirmDeleteModal");
-                itemObject = new ChatItem() { };
-            }
-        }
-        protected override async Task OnInitializedAsync()
-        {
-            Messages.Add(new ChatItem() { Source = MessageSources.System, Message = "You are a helpful assistant." });
-            Messages.Add(new ChatItem() { Source = MessageSources.User, Message = "Who won the world series in 2020?" });
-            Messages.Add(new ChatItem() { Source = MessageSources.Asistant, Message = "The Los Angeles Dodgers won the World Series in 2020." });
-            Messages.Add(new ChatItem() { Source = MessageSources.User, Message = "Where was it played?" });
-
-        }
-        async Task Reset()
-        {
-            form.Reset();
-            results.Clear();
-            Messages.Clear();
-        }
-        async Task Submit()
-        {
-            if (Messages.Count <= 0)
-            {
-                Snackbar.Add("Please input message first", Severity.Warning);
-
-                return;
-            }
-            var ListMessage = new List<ChatMessage>();
-            Messages.ForEach(x =>
-            {
-                switch (x.Source)
-                {
-                    case MessageSources.Asistant:
-                        ListMessage.Add(ChatMessage.FromAssistant(x.Message));
-                        break;
-                    case MessageSources.User:
-                        ListMessage.Add(ChatMessage.FromUser(x.Message));
-                        break;
-                    case MessageSources.System:
-                        ListMessage.Add(ChatMessage.FromSystem(x.Message));
-                        break;
-                }
-            });
-            var completionResult = openAiService.ChatCompletion.CreateCompletionAsStream(new ChatCompletionCreateRequest
-            {
-                Messages = ListMessage,
-                Model = SelectedModel,
-                MaxTokens = MaxToken//optional
-            });
-            var message = string.Empty;
-            results.Add(message);
-            await foreach (var completion in completionResult)
-            {
-                if (completion.Successful)
-                {
-                    var res = completion.Choices.FirstOrDefault()?.Message.Content;
-                    Console.Write(res);
-                    message += res;
-                }
-                else
-                {
-                    if (completion.Error == null)
-                    {
-                        throw new Exception("Unknown Error");
-                    }
-                    var res = $"{completion.Error.Code}: {completion.Error.Message}";
-                    Console.WriteLine(res);
-                    message += res;
-                }
-                results[results.Count - 1] = message;
-                StateHasChanged();
-                await Task.Delay(1);
-            }
-
-
+            Messages.Add(new ChatItem() { Message = InputPrompt, Source = SelectedSource });
+            InputPrompt = string.Empty;
         }
 
     }
+    private async Task PrepareForDelete(ChatItem item)
+    {
+        itemObject = item;
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+        var dialog = DialogService.Show<ConfirmDialog>("Konfirmasi", options);
+        var result = await dialog.Result;
+
+        if (!result.Cancelled)
+        {
+            var task = Messages.Remove(item);
+            //await jsRuntime.InvokeAsync<object>("CloseModal", "confirmDeleteModal");
+            itemObject = new ChatItem() { };
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        Messages.Add(new ChatItem() { Source = MessageSources.System, Message = "You are a helpful assistant." });
+        Messages.Add(new ChatItem() { Source = MessageSources.User, Message = "Who won the world series in 2020?" });
+        Messages.Add(new ChatItem() { Source = MessageSources.Assistant, Message = "The Los Angeles Dodgers won the World Series in 2020." });
+        Messages.Add(new ChatItem() { Source = MessageSources.User, Message = "Where was it played?" });
+
+    }
+    async Task Reset()
+    {
+        form.Reset();
+        results.Clear();
+        Messages.Clear();
+        MaxToken = 50;
+        SelectedModel = Models.ChatGpt3_5Turbo;
+    }
+    async Task Submit()
+    {
+        if (Messages.Count <= 0)
+        {
+            Snackbar.Add("Please input message first", Severity.Warning);
+
+            return;
+        }
+        var ListMessage = new List<ChatMessage>();
+        Messages.ForEach(x =>
+        {
+            switch (x.Source)
+            {
+                case MessageSources.Assistant:
+                    ListMessage.Add(ChatMessage.FromAssistant(x.Message));
+                    break;
+                case MessageSources.User:
+                    ListMessage.Add(ChatMessage.FromUser(x.Message));
+                    break;
+                case MessageSources.System:
+                    ListMessage.Add(ChatMessage.FromSystem(x.Message));
+                    break;
+            }
+        });
+        var completionResult = openAiService.ChatCompletion.CreateCompletionAsStream(new ChatCompletionCreateRequest
+        {
+            Messages = ListMessage,
+            Model = SelectedModel,
+            MaxTokens = MaxToken//optional
+        });
+        var message = string.Empty;
+        results.Add(message);
+        await foreach (var completion in completionResult)
+        {
+            if (completion.Successful)
+            {
+                var res = completion.Choices.FirstOrDefault()?.Message.Content;
+                Console.Write(res);
+                message += res;
+            }
+            else
+            {
+                if (completion.Error == null)
+                {
+                    throw new Exception("Unknown Error");
+                }
+                var res = $"{completion.Error.Code}: {completion.Error.Message}";
+                Console.WriteLine(res);
+                message += res;
+            }
+            results[results.Count - 1] = message;
+            StateHasChanged();
+            await Task.Delay(1);
+        }
+
+
+    }
+
+}
